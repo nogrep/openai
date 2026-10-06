@@ -70,12 +70,39 @@ messages.append({"role": "assistant", "content": assemble(blocks)})
 - Một biến trạng thái được set mà không bao giờ được đọc là dấu hiệu code smell. Khi review, nếu thấy cờ kiểu `xxx_seen` mà không có nhánh nào rẽ theo nó, hãy nghi ngờ ngay.
 - Thà **bỏ nguyên lượt dang dở và retry** còn hơn lưu nửa vời, vì lỗi do lưu nửa vời sẽ hiện ở request sau và rất khó truy ngược.
 
-## Phân tích thêm (của Claude, không có trong bài)
+## Tóm tắt, ELI5 và ví dụ (phần Claude thêm)
 
-- **Mức độ chắc chắn:** nội dung phần "Lỗi nằm ở đâu" và "Cách sửa" bám sát đáp án tham chiếu của bài. Riêng nhận định bên dưới là suy luận của tôi, bạn nên kiểm tra lại với tài liệu của SDK.
-- Tùy kiểu đứt kết nối, SDK có thể ném exception ngay trong lúc duyệt stream, hoặc vòng duyệt kết thúc êm mà không có `message_stop`. Kịch bản của bài là trường hợp thứ hai. Với trường hợp đầu thì dòng thêm vào history vốn đã không chạy tới, nhưng bản sửa ở trên vẫn đúng cho cả hai.
-- Khi retry, hãy gửi lại request với history **chỉ gồm các lượt hoàn chỉnh**. Nếu đã có tool đang chạy dở ở phía bạn, cân nhắc tính idempotent của tool trước khi retry.
+**Tóm tắt**
 
-## Gợi ý ôn thi
+- Đề: handler Python nhận stream rồi thêm lượt assistant vào history. Có **đúng một lỗi**, chỉ lộ khi stream đứt giữa chừng. Phải chỉ ra lỗi và viết lại.
+- Lỗi: handler có cờ `finished` được bật khi thấy `message_stop`, nhưng **không ai đọc cờ đó**. Bước append chạy vô điều kiện.
+- Sửa: **có `message_stop` thì append, không có thì không ghi gì và raise** để tầng ngoài retry từ lượt hoàn chỉnh gần nhất.
+- Lỗi vô hình khi test trên mạng tốt, chỉ nổ ở production.
+- Dấu hiệu code smell: biến trạng thái được set mà không bao giờ rẽ nhánh theo nó.
 
-Câu hỏi dạng này thường kiểm tra: (1) bạn có nhận ra lỗi "commit không điều kiện" hay không, (2) bạn có phân biệt "stream kết thúc" với "message hoàn tất" hay không, (3) bạn có chọn đúng hướng xử lý là bỏ lượt dở và retry từ lượt hoàn chỉnh gần nhất hay không.
+**ELI5**
+
+Bạn gắn chuông báo "hàng đã giao đủ" ở cửa kho, chuông kêu đúng lúc, nhưng thủ kho vẫn nhập kho mọi kiện hàng dù chuông chưa kêu. Chuông có cũng như không.
+
+**Ví dụ khi implement**
+
+**Trước (lỗi): cờ có set nhưng không dùng**
+
+```python
+finished = False
+for event in stream:
+    ...
+    elif event.type == "message_stop":
+        finished = True
+messages.append({"role": "assistant", "content": assemble(blocks)})  # luôn chạy
+```
+
+**Sau (đúng): cờ làm điều kiện chặn**
+
+```python
+if not finished:
+    raise StreamInterruptedError("Stream ended before message_stop")
+messages.append({"role": "assistant", "content": assemble(blocks)})
+```
+
+Dùng để: lượt dở không bao giờ vào history; lớp ngoài bắt lỗi và retry.
