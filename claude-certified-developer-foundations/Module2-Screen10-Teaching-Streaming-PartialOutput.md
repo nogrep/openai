@@ -55,7 +55,39 @@ Cách xử lý:
 - **Lợi:** response dài và UI cho người dùng không còn cảnh màn hình trắng chờ đợi.
 - **Chi phí:** tự lắp block, không được hành động trên block dở, phải xử lý chủ động trường hợp stream bị ngắt.
 
-## Phân tích thêm (của Claude, không có trong bài)
+## Tóm tắt, ELI5 và ví dụ (phần Claude thêm)
 
-- **Liên hệ các screen sau:** quy tắc "chỉ thêm vào history sau `message_stop`" ở đây chính là điều mà case study ở Screen 11 vi phạm, và là lỗi cần sửa trong Checkpoint 4 ở Screen 12.
-- **Độ đầy đủ của ghi chú:** khi đọc màn này tôi cuộn nhanh nên có một đoạn ngắn nằm giữa phần "quy tắc cốt lõi" và phần "khi stream bị đứt" chưa được đọc kỹ. Các ý chính ở hai phần đó vẫn đủ, nhưng nếu bạn thấy thiếu ý thì đối chiếu lại với màn gốc.
+**Tóm tắt**
+
+- Streaming đổi người lắp ráp câu trả lời từ API sang **code của bạn**. Thành phẩm cuối giống hệt bản không streaming.
+- Trình tự event: `message_start` → `content_block_start` → nhiều `content_block_delta` → `content_block_stop` → `message_delta` (có `stop_reason`) → `message_stop`.
+- Input của tool_use đến theo từng mảnh JSON, **chỉ parse được sau `content_block_stop`**. Đừng chạy tool trước đó.
+- **Chỉ thêm lượt assistant vào history sau `message_stop`.** Tool_use dở dang trong history làm request kế tiếp bị từ chối.
+- Stream đứt giữa chừng: bỏ lượt dang dở, gửi lại request. Kiểm tra `stop_reason == "tool_use"` trước khi chạy tool.
+- Text dở chỉ là lỗi hiển thị; tool_use dở là lỗi cấu trúc làm hỏng hội thoại về sau.
+
+**ELI5**
+
+Bạn đặt một cái tủ IKEA, hàng giao thành nhiều thùng nhỏ lần lượt. Bạn là người lắp. Nếu xe giao hàng hỏng giữa đường, thùng cuối không đến, bạn **không** đem cái tủ lắp dở đặt vào phòng khách rồi mời khách ngồi lên. Bạn đợi thùng cuối (`message_stop`), hoặc tháo ra và đặt giao lại.
+
+**Ví dụ khi implement**
+
+**Snippet 1: gom mảnh JSON của tool_use, chỉ parse khi block xong**
+
+```python
+if event.type == "content_block_delta" and event.delta.type == "input_json_delta":
+    buf[event.index] += event.delta.partial_json      # chỉ nối chuỗi, chưa parse
+elif event.type == "content_block_stop":
+    tool_input = json.loads(buf[event.index])         # lúc này JSON mới đủ
+```
+
+Dùng để: tránh `JSONDecodeError` hoặc chạy tool với thiếu tham số.
+
+**Snippet 2: chốt lượt chỉ sau message_stop**
+
+```python
+if event.type == "message_stop":
+    messages.append({"role": "assistant", "content": assemble(blocks)})
+```
+
+Dùng để: history không bao giờ chứa lượt dở.
