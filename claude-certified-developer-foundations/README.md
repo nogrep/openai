@@ -19,3 +19,4 @@ Ghi chú diễn giải bằng tiếng Việt cho khóa **Production-Grade Prompt
 | 18 | Checkpoint 6 | Hoàn thiện agent wiring: description cho update_record và checkpoint HITL | [Module2-Screen18-Checkpoint6-Complete-Agent-Wiring.md](Module2-Screen18-Checkpoint6-Complete-Agent-Wiring.md) |
 | 19 | Teaching | Agent memory: chọn scope cho state qua nhiều session, Skills vs CLAUDE.md | [Module2-Screen19-Teaching-AgentMemory-ScopeAndSkills.md](Module2-Screen19-Teaching-AgentMemory-ScopeAndSkills.md) |
 | 20 | Watch Out | Agent làm đầy context window ở session thứ tư (chọn sai memory scope) | [Module2-Screen20-WatchOut-AgentMemory-Window-Filled-Session-Four.md](Module2-Screen20-WatchOut-AgentMemory-Window-Filled-Session-Four.md) |
+| 21 | Checkpoint 7 | Chọn đúng memory pattern cho 3 use case | [Module2-Screen21-Checkpoint7-Choose-Right-Memory-Pattern.md](Module2-Screen21-Checkpoint7-Choose-Right-Memory-Pattern.md) |
