@@ -57,11 +57,46 @@ Bảng đối chiếu trong bài:
 1. **Fixture dev ngắn hơn dữ liệu thật.** Điều này đúng với hầu hết agent được xây dựa trên một bộ fixture. Cách khắc phục: **đo chi phí token thực tế của một kết quả tool với đầu vào lớn nhất mà bạn tìm được trong dữ liệu đích**, trước khi agent ra mắt.
 2. **Tràn context thường bị đọc nhầm thành lỗi chọn tool**, vì kết quả nhìn giống nhau. Nếu thấy khả năng chọn tool suy giảm sau một số lượt cố định, hãy **kiểm tra xem context window có đang đầy hay không trước khi mất công debug schema**.
 
-## Phân tích thêm (của Claude, không có trong bài)
+## Tóm tắt, ELI5 và ví dụ (phần Claude thêm)
 
-- **Liên hệ Screen 11:** hai bài Watch Out cùng một mẫu tư duy: lỗi hiện ra ở chỗ khác với nơi gây ra nó (ở Screen 11 là request kế tiếp, ở đây là việc chọn tool), nên người debug dễ soi nhầm chỗ. Mẹo chung: khi triệu chứng đến muộn và đúng vào một số lượt cố định, nghi ngờ trạng thái tích lũy trước.
-- **Liên hệ Screen 13:** phần cách sửa chính là hai chiến lược pruning và compaction ở Screen 13. Công cụ đo trước khi gửi là endpoint `count_tokens` cũng ở Screen 13, rất hợp để kiểm tra giả định ngân sách bằng output tool thật. Việc giữ system prompt và chỉ dẫn quan trọng khỏi bị chen mất là một lý do nữa để viết prompt cho bộ tóm tắt cụ thể.
-- **Dấu hiệu nhận biết trong đề thi:** "hỏng sau đúng N lượt" kèm "output tool lớn hơn dữ liệu test" gần như luôn chỉ về áp lực context, không phải schema hay prompt chọn tool.
-- **Hai chỗ trong bài mà tôi chưa thấy khớp hoàn toàn (cần đối chiếu, mức chắc chắn trung bình):**
-  1. Về số học: ở dev, 20 lượt tốn khoảng 18k trong đó tool chiếm khoảng 16k (20 × 800), tức phần còn lại (system prompt, tin nhắn) khoảng 2k. Nếu phần còn lại ở prod cũng cỡ đó thì 8 lượt chỉ khoảng 25,6k + vài nghìn, chưa tới 40k. Bài nói tổng chạm 40k ở lượt 8 nên có thể phần còn lại ở prod lớn hơn (ví dụ tin nhắn dài hơn) hoặc bài làm tròn để minh họa. Tôi không thể xác nhận từ nội dung bài.
-  2. Về window: đoạn văn nói các model flagship mới nhất, kể cả Fable, mặc định phục vụ 1M token, còn bảng ghi "1M trên các model Opus và Sonnet hiện hành". Hai cách nói không giống nhau. Số liệu loại này phụ thuộc phiên bản, nên hãy kiểm tra lại với tài liệu chính thức thay vì dựa vào bài.
+**Tóm tắt**
+
+- Dev dùng dữ liệu test ngắn (~800 token/lần gọi tool), production dùng dữ liệu thật dài (~3.200 token/lần), nên ngân sách 40k cạn ở lượt 8.
+- Triệu chứng giống lỗi chọn tool, nhưng gốc là output tool tích tụ chen mất chỉ dẫn ban đầu.
+- Cách xử lý: cắt tỉa output tool sau khi dùng, nén chủ động trước khi chạm trần, đo token với đầu vào lớn nhất trước khi ra mắt.
+
+**ELI5**
+
+Bạn tập chạy xe trên đường bằng phẳng, bình xăng đủ cả chặng. Ra đường đèo thật, xe tiêu hao gấp mấy lần, hết xăng giữa đường dù bình vẫn là bình cũ. Người ta tưởng tài xế lái dở, thực ra chưa ai đo mức tiêu hao trên đường thật.
+
+**Ví dụ khi implement**
+
+*Snippet 1: đo với input lớn nhất trước khi ra mắt*
+
+```python
+worst_case = max(load_real_samples(), key=len)
+tokens = client.messages.count_tokens(
+    model=MODEL, system=SYSTEM, tools=TOOLS,
+    messages=[{"role": "user", "content": worst_case}],
+).input_tokens
+assert tokens < BUDGET / EXPECTED_TURNS
+```
+
+Dùng để: kiểm tra ngân sách bằng dữ liệu thật thay vì fixture ngắn.
+
+*Snippet 2: cắt tỉa output tool cũ*
+
+```python
+def prune_tool_results(messages, keep_last=2):
+    seen = 0
+    for m in reversed(messages):
+        if m["role"] == "user" and isinstance(m["content"], list):
+            for b in m["content"]:
+                if b.get("type") == "tool_result":
+                    seen += 1
+                    if seen > keep_last:
+                        b["content"] = "[đã lược bỏ output cũ]"
+    return messages
+```
+
+Dùng để: output tool đã dùng xong không tiếp tục chiếm chỗ và chen mất chỉ dẫn.
