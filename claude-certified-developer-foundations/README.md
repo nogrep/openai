@@ -20,3 +20,4 @@ Ghi chú diễn giải bằng tiếng Việt cho khóa **Production-Grade Prompt
 | 19 | Teaching | Agent memory: chọn scope cho state qua nhiều session, Skills vs CLAUDE.md | [Module2-Screen19-Teaching-AgentMemory-ScopeAndSkills.md](Module2-Screen19-Teaching-AgentMemory-ScopeAndSkills.md) |
 | 20 | Watch Out | Agent làm đầy context window ở session thứ tư (chọn sai memory scope) | [Module2-Screen20-WatchOut-AgentMemory-Window-Filled-Session-Four.md](Module2-Screen20-WatchOut-AgentMemory-Window-Filled-Session-Four.md) |
 | 21 | Checkpoint 7 | Chọn đúng memory pattern cho 3 use case | [Module2-Screen21-Checkpoint7-Choose-Right-Memory-Pattern.md](Module2-Screen21-Checkpoint7-Choose-Right-Memory-Pattern.md) |
+| 22 | Cumulative debug (Stage 1) | Nhận diện 4 bug ở 4 tầng: schema, streaming, context, memory | [Module2-Screen22-CumulativeDebug-Stage1-Identify-Each-Bug.md](Module2-Screen22-CumulativeDebug-Stage1-Identify-Each-Bug.md) |
