@@ -78,26 +78,3 @@ Lý do bài đưa ra cho đáp án đúng: lỗi bắt đầu ở lượt 5 ch�
 - Nó không cắt tỉa, không nén, nên các kết quả tool cũ vẫn chen mất chỉ dẫn.
 
 **Vì sao B đúng:** B tác động thẳng vào cơ chế. Cắt tỉa kết quả tool đã dùng xong để chúng không tiếp tục chiếm chỗ, và nén trước khi chạm mức nguy hiểm. Đây chính là hai chiến lược pruning và compaction ở Screen 13, cũng là cách sửa được dùng trong postmortem ở Screen 14.
-
-## Tóm tắt, ELI5 và ví dụ (phần Claude thêm)
-
-**Tóm tắt**
-
-- Trace: lượt 1-4 gọi đúng, lượt 5 chọn sai tool, lượt 6 lặp lại, lượt 7 thất bại. Thứ thay đổi giữa lượt 4 và 5 là lượng context tích lũy (4 × 2.400 = 9.600 token), không phải schema hay prompt.
-- Đáp án đúng B: cắt tỉa output `fetch_policy_document` sau mỗi lượt và nén trước lượt 5.
-- Cách đọc trace: tìm lượt đúng cuối, lượt sai đầu, xem cái gì đổi giữa hai lượt, kiểm tra lỗi có lặp lại không, rồi sửa đúng thứ đã đổi.
-
-**ELI5**
-
-Bàn làm việc ngày càng chất đầy giấy cũ, đến lúc tờ hướng dẫn quan trọng bị chìm xuống đáy. Bạn không sửa tờ hướng dẫn cho dễ đọc hơn (A), cũng không mua thêm khay đựng giấy ra (C); bạn dọn giấy cũ đi (B).
-
-**Ví dụ khi implement**
-
-*Snippet: ghi log kích thước context mỗi lượt để dễ thấy lượt "chuyển biến"*
-
-```python
-usage = resp.usage
-log.info("turn=%d tool=%s input_tokens=%d", turn, tool_name, usage.input_tokens)
-```
-
-Dùng để: nhìn đường cong input_tokens tăng theo lượt, đối chiếu với lượt bắt đầu chọn sai tool.
