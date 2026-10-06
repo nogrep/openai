@@ -27,68 +27,29 @@ Bạn nhờ cậu bé giúp việc chỉnh nút âm lượng cái loa. Lúc tậ
 
 Cậu bé không làm sai việc được giao. Cái thiếu là một câu hỏi trước khi vặn nút: **"Chú ơi, con chỉnh thế này được không?"** Việc "giá trị hợp lệ" (đúng vạch) khác hẳn việc "an toàn cho buổi tiệc đang chạy".
 
-## Ví dụ thực tế khi implement (tách "đề xuất" và "thực thi")
+## Ví dụ thực tế khi implement
 
-Ý tưởng: ở production, tool ghi **không ghi ngay**, mà trả về một bản đề xuất (diff) và chờ người duyệt.
+Ý tưởng: ở production, tool ghi không ghi ngay mà đưa diff cho người duyệt trước.
+
+**Snippet 1: chốt chặn trong tool ghi**
 
 ```python
-import difflib
-import json
-
-MAX_ITERATIONS = 10
-PROTECTED_ENVS = {"production"}  # môi trường cần HITL
-
-
-def write_file_tool(path: str, new_content: str, env: str, approver) -> dict:
-    """Tool ghi file. Ở môi trường được bảo vệ thì phải qua người duyệt."""
-    old_content = open(path).read()
-
-    if env in PROTECTED_ENVS:
-        diff = "\n".join(
-            difflib.unified_diff(
-                old_content.splitlines(), new_content.splitlines(),
-                fromfile="current", tofile="proposed", lineterm="",
-            )
-        )
-        # Dừng vòng lặp tại đây, đưa diff cho người xem
-        decision = approver(path=path, diff=diff)  # trả về "approve" hoặc "reject"
-        if decision != "approve":
-            return {"status": "rejected_by_human", "path": path}
-
-    with open(path, "w") as f:
-        f.write(new_content)
-    return {"status": "written", "path": path}
-
-
-def run_agent(client, messages, tools, env, approver):
-    for _ in range(MAX_ITERATIONS):
-        resp = client.messages.create(
-            model="claude-sonnet-5-5", max_tokens=2048,
-            tools=tools, messages=messages,
-        )
-        messages.append({"role": "assistant", "content": resp.content})
-
-        if resp.stop_reason != "tool_use":   # điều kiện thoát
-            return resp
-
-        results = []
-        for block in resp.content:
-            if block.type != "tool_use":
-                continue
-            if block.name == "write_file":
-                out = write_file_tool(env=env, approver=approver, **block.input)
-            else:
-                out = run_other_tool(block.name, block.input)
-            results.append({
-                "type": "tool_result",
-                "tool_use_id": block.id,
-                "content": json.dumps(out),
-            })
-        # mọi tool_use của cùng một lượt phải có tool_result trả về cùng nhau
-        messages.append({"role": "user", "content": results})
+if env in PROTECTED_ENVS:
+    decision = approver(path=path, diff=make_diff(old, new))
+    if decision != "approve":
+        return {"status": "rejected_by_human"}
+open(path, "w").write(new)
 ```
 
-Điểm cần thấy trong code:
-- Checkpoint nằm **bên trong tool ghi**, trước dòng `open(path, "w")`, không nằm ở `validate_config`.
-- Môi trường test (`env="test"`) vẫn ghi thẳng nên test vẫn nhanh; chỉ production mới dừng chờ người.
-- Khi bị từ chối, agent nhận `rejected_by_human` làm tool_result và có thể đề xuất cách khác, vòng lặp không vỡ.
+Dùng để: chỉ môi trường production mới phải chờ người duyệt, test vẫn ghi thẳng. Chốt chặn nằm trước dòng ghi, không nằm ở `validate_config`.
+
+**Snippet 2: điều kiện thoát của vòng lặp**
+
+```python
+for _ in range(MAX_ITERATIONS):
+    resp = client.messages.create(...)
+    if resp.stop_reason != "tool_use":
+        break
+```
+
+Dùng để: vòng lặp dừng khi Claude không gọi tool nữa, có giới hạn số vòng. Khi người từ chối, agent nhận `rejected_by_human` làm tool_result và đổi cách làm, vòng lặp không vỡ.
