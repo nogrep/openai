@@ -79,11 +79,3 @@ def build_session_history(prior_sessions):
 | **Streaming** | Lượt assistant được commit vào history **trước khi** thấy `message_stop`, và khối `thinking` bị loại bỏ | Stream bị ngắt sẽ ghi một `tool_use` dở dang vào history; ngoài ra bỏ khối thinking vi phạm quy tắc carry-back, nên API từ chối request kế tiếp vì chữ ký (signature) không còn khớp |
 | **Context** | Chỉ append `tool_result`, không có lượt assistant chứa `tool_use` đứng trước nó | API thấy một `tool_result` tham chiếu tới `tool_use` mà nó chưa từng nhận như một lượt assistant hoàn chỉnh, nên từ chối request |
 | **Memory** | Nối toàn bộ transcript các session trước vào context | Context window lớn dần theo từng session và đầy trước khi agent kịp xử lý yêu cầu hiện tại, vào khoảng session bốn hoặc năm |
-
-Trang kết thúc bằng hai nút tự chấm: "I found all four · pass" và "I missed one or more · retry".
-
-## Đối chiếu với bản phân tích trước của tôi (Claude)
-
-- **Schema và Memory:** khớp đáp án.
-- **Streaming:** tôi chỉ bắt được nửa đầu (commit trước `message_stop`, `stop_seen` không được dùng). Tôi từng ngờ việc loại khối `thinking` là vấn đề phụ, nhưng đáp án coi nó là một phần của bug streaming: khối thinking phải được giữ nguyên khi trả lại lượt có `tool_use`.
-- **Context:** tôi đoán sai hướng (mỗi `tool_result` một tin nhắn `user` riêng). Đáp án nói về việc thiếu lượt assistant chứa `tool_use` trước `tool_result`. Đoạn code ở trên là bản tôi viết gọn lại từ trang, nên chi tiết phần dựng message có thể không giống code gốc; hãy tin đáp án của trang.
