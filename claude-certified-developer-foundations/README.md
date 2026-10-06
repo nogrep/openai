@@ -16,3 +16,4 @@ Ghi chú diễn giải bằng tiếng Việt cho khóa **Production-Grade Prompt
 | 15 | Checkpoint 5 | Chẩn đoán lỗi context (đọc trace, giải thích cả ba lựa chọn) | [Module2-Screen15-Checkpoint5-Diagnose-Context-Failure.md](Module2-Screen15-Checkpoint5-Diagnose-Context-Failure.md) |
 | 16 | Teaching | Xây agent production: vòng lặp, 3 đường wiring, HITL, ràng buộc dữ liệu | [Module2-Screen16-Teaching-AgentConstruction-Loop-WiringPaths-HITL.md](Module2-Screen16-Teaching-AgentConstruction-Loop-WiringPaths-HITL.md) |
 | 17 | Watch Out | Agent sửa file production: thiếu checkpoint HITL trước thao tác không hoàn tác | [Module2-Screen17-WatchOut-AgentConstruction-Agent-Edited-Production-File.md](Module2-Screen17-WatchOut-AgentConstruction-Agent-Edited-Production-File.md) |
+| 18 | Checkpoint 6 | Hoàn thiện agent wiring: description cho update_record và checkpoint HITL | [Module2-Screen18-Checkpoint6-Complete-Agent-Wiring.md](Module2-Screen18-Checkpoint6-Complete-Agent-Wiring.md) |
