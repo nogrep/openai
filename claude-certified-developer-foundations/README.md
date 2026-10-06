@@ -14,3 +14,4 @@ Ghi chú diễn giải bằng tiếng Việt cho khóa **Production-Grade Prompt
 | 13 | Teaching | Context engineering: chọn model và ngân sách context | [Module2-Screen13-Teaching-ContextEngineering-ModelSelection-Budget.md](Module2-Screen13-Teaching-ContextEngineering-ModelSelection-Budget.md) |
 | 14 | Watch Out | Context engineering: phiên chạy ổn ở dev, chạm trần ở production | [Module2-Screen14-WatchOut-ContextEngineering-Budget-Never-Measured.md](Module2-Screen14-WatchOut-ContextEngineering-Budget-Never-Measured.md) |
 | 15 | Checkpoint 5 | Chẩn đoán lỗi context (đọc trace, giải thích cả ba lựa chọn) | [Module2-Screen15-Checkpoint5-Diagnose-Context-Failure.md](Module2-Screen15-Checkpoint5-Diagnose-Context-Failure.md) |
+| 16 | Teaching | Xây agent production: vòng lặp, 3 đường wiring, HITL, ràng buộc dữ liệu | [Module2-Screen16-Teaching-AgentConstruction-Loop-WiringPaths-HITL.md](Module2-Screen16-Teaching-AgentConstruction-Loop-WiringPaths-HITL.md) |
