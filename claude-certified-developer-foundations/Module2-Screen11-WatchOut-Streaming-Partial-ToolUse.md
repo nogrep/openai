@@ -44,8 +44,48 @@ Ba việc phải làm:
 
 Mẹo debug: khi gặp lỗi tool-use trên một request retry, **hãy kiểm tra xem lượt trước đó có được lắp từ một stream không** trước khi động vào schema.
 
-## Phân tích thêm (của Claude, không có trong bài)
+## Tóm tắt, ELI5 và ví dụ (phần Claude thêm)
 
-- **Vì sao test không bắt được:** test chỉ phủ đường "stream chạy hết". Nhánh "stream đứt" cần được mô phỏng chủ động, ví dụ chèn lỗi ngắt kết nối giữa chừng vào test.
-- **Nguyên lý chung:** "kết thúc việc đọc" và "dữ liệu đã trọn vẹn" là hai trạng thái khác nhau. Điều kiện chốt phải dựa vào tín hiệu hoàn tất có chủ đích của giao thức (`message_stop`), không dựa vào hiệu ứng phụ như vòng lặp thoát.
-- **Liên hệ Screen 10:** đây là phiên bản "thực chiến" của quy tắc "không hành động trên block chưa xong" và "chỉ thêm vào history sau `message_stop`".
+**Tóm tắt**
+
+- Agent dùng streaming; handler thêm lượt assistant vào history **khi vòng đọc stream thoát**.
+- Test trên mạng local: stream luôn chạy đến `message_stop`, nên không bao giờ gặp lỗi.
+- Production: mạng chập chờn làm stream đứt giữa chừng, block tool_use chỉ có nửa JSON input. Handler vẫn commit lượt đó.
+- Người vận hành retry, request mang theo lượt hỏng, API từ chối bằng lỗi validation. Lỗi hiện ở **request sau**, nên cả nhóm soi nhầm schema và retry cả buổi chiều.
+- Gốc lỗi: coi "vòng đọc kết thúc" là "message hoàn tất". **Chỉ `message_stop` mới xác nhận message trọn vẹn.**
+- Cách xử lý: (1) chỉ append sau `message_stop`, (2) stream đứt thì bỏ lượt dở, (3) retry từ lượt hoàn chỉnh gần nhất.
+- Mẹo debug: gặp lỗi tool-use ở request retry, kiểm tra lượt trước có được lắp từ stream không trước khi đụng schema.
+
+**ELI5**
+
+Bạn ghi lời nhắn qua điện thoại cho đồng nghiệp: "Chuyển khoản 5 triệu cho...", rồi cuộc gọi rớt. Bạn vẫn dán mẩu giấy dở dang đó lên bảng như một chỉ thị hoàn chỉnh. Hôm sau kế toán đọc không hiểu, và người ta đi kiểm tra... máy in, thay vì cuộc gọi bị rớt hôm qua.
+
+**Ví dụ khi implement**
+
+**Snippet 1: test mô phỏng stream đứt (test thường bỏ sót nhánh này)**
+
+```python
+def flaky_stream(events, cut_after):
+    for i, e in enumerate(events):
+        if i == cut_after:
+            return            # kết thúc êm, không có message_stop
+        yield e
+
+def test_partial_turn_not_committed():
+    messages = []
+    with pytest.raises(StreamInterruptedError):
+        handle_stream(flaky_stream(EVENTS_WITH_TOOL_USE, cut_after=4), messages)
+    assert messages == []     # history không bị nhiễm
+```
+
+Dùng để: chứng minh handler không ghi lượt dở vào history.
+
+**Snippet 2: retry từ lượt hoàn chỉnh gần nhất**
+
+```python
+for attempt in range(3):
+    try:
+        return handle_stream(client, list(messages))   # luôn gửi history sạch
+    except StreamInterruptedError:
+        continue
+```
