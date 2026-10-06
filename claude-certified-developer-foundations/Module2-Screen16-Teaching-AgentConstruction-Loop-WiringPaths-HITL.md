@@ -125,12 +125,50 @@ Bảng năm ràng buộc (diễn giải, dựa trên những gì tôi đọc):
 
 Hai ghi chú cuối bài: bảng này chỉ gồm các ràng buộc **quyết định chọn endpoint và cấu hình credentials**. **SOC 2 không thuộc phạm vi ở đây** vì nó chi phối cách hệ thống được xây và vận hành, không phải endpoint nào được gọi, và được học ở Module 4. Hộp "forward pointer" nói Module 4 đi sâu về IAM và quyền riêng tư theo thiết kế, phòng thủ prompt injection, guardrail lúc chạy và hardening agent; phần này chỉ có vai trò **nêu ràng buộc đúng lúc nó loại bỏ lựa chọn**: khi chọn endpoint, cấu hình SDK client và credentials mang theo vào production.
 
-## Phân tích thêm (của Claude, không có trong bài)
+## Tóm tắt, ELI5 và ví dụ (phần Claude thêm)
 
-- **Mô hình trí nhớ dễ dùng khi thi:** ba câu hỏi theo thứ tự. (1) Có cần agent không? (workflow nếu liệt kê được các bước). (2) Ràng buộc dữ liệu nào chi phối route? (loại đường trước). (3) Còn lại thì chọn đường theo mức hạ tầng muốn tự giữ. Đảo thứ tự (2) và (3) là kiểu lỗi mà bài cảnh báo.
-- **Bẫy nhận diện:** Managed Agents hấp dẫn nhất đúng ở tác vụ chạy dài và sandbox, nhưng nếu đề nêu PHI hoặc ZDR thì đáp án không phải Managed Agents bất kể phần còn lại. Tương tự, nếu đề nêu "EU data residency" thì API trực tiếp không phải đáp án theo bài.
-- **Điểm chung với các Screen trước:** điều kiện thoát tường minh (bước 4) và checklist mục 3 (mọi tool-use block cùng một lượt phải được giải quyết) cùng họ với quy tắc streaming của Screen 10-12 (đừng commit lượt dở dang vào history). Over-tooling (mục 6) cùng họ triệu chứng với Screen 14-15: chọn sai tool, nhưng nguyên nhân có thể nằm ở số tool hoặc áp lực context chứ không chỉ ở mô tả schema.
-- **Mức chắc chắn và phần cần đối chiếu (trung bình):**
-  1. Các chi tiết có tuổi thọ ngắn (Managed Agents ở public beta, header beta, "chưa đủ điều kiện ZDR/HIPAA", danh sách route FedRAMP, việc API trực tiếp chưa có EU residency) có thể đã đổi. Bài tự dặn kiểm tra với tài liệu và trust.anthropic.com. Hãy học chúng như "trạng thái tại thời điểm bài" chứ không phải sự thật cố định.
-  2. Tên header beta tôi ghi từ lúc đọc trước đó trong phiên; nếu bạn cần dùng thật thì đối chiếu lại với tài liệu.
-- **Độ đầy đủ ghi chú:** tôi đọc cuộn từng màn hình và đọc lại phần đầu lẫn các tab ở lượt thứ hai. Ba tab wiring tôi đã bấm đủ; một số ô hover/hộp nhỏ ngoài những gì liệt kê ở trên có thể có sót. Nếu thấy thiếu ý, đối chiếu màn gốc.
+**Tóm tắt**
+
+- Trước tiên hỏi: có cần agent không? Liệt kê được các bước thì dùng workflow.
+- Vòng lặp giống nhau ở cả ba đường (raw API, Agent SDK, Managed Agents); khác ở lượng hạ tầng bạn tự giữ.
+- Managed Agents hiện chưa đủ điều kiện ZDR/HIPAA, nên với PHI hoặc ZDR thì loại ngay.
+- Bốn bước nối vòng lặp: đăng ký tool, system prompt có phạm vi, xử lý tool-use loop, điều kiện thoát. Cộng thêm điểm HITL cho hành động không hoàn tác.
+- Ít tool nhưng đúng tốt hơn nhiều tool chồng lấn. Ràng buộc dữ liệu quy định quyết định endpoint và credentials trước khi viết wiring.
+
+**ELI5**
+
+Có ba cách đi từ nhà đến sân bay: tự lái xe (raw API: bạn lo mọi thứ), đi xe công nghệ có bạn ngồi cạnh dặn đường (Agent SDK: khung lái có sẵn, bạn vẫn xử lý việc thực tế), hoặc thuê xe đưa đón trọn gói (Managed Agents: tiện nhưng chạy theo luật của hãng). Nếu hành lý là thứ không được phép qua hãng đó (PHI/ZDR), thì dù tiện đến mấy cũng không chọn được.
+
+**Ví dụ khi implement**
+
+*Snippet 1: `settingSources` nên đặt tường minh (Agent SDK)*
+
+```python
+options = ClaudeAgentOptions(setting_sources=["user", "project", "local"])  # giống Claude Code CLI
+# hoặc [] để chạy cô lập hoàn toàn
+```
+
+Dùng để: không phụ thuộc mặc định khi nạp CLAUDE.md và skill. Tên tham số theo từng SDK có thể khác, đối chiếu tài liệu Agent SDK.
+
+*Snippet 2: xử lý mọi tool_use của cùng một lượt rồi trả đủ tool_result*
+
+```python
+results = [
+    {"type": "tool_result", "tool_use_id": b.id, "content": run_tool(b.name, b.input)}
+    for b in resp.content if b.type == "tool_use"
+]
+messages.append({"role": "user", "content": results})
+```
+
+Dùng để: không bỏ sót tool_use nào trong lượt (mục 3 của checklist nối vòng lặp).
+
+*Snippet 3: điều kiện thoát không dựa vào việc Claude tự nguyện dừng*
+
+```python
+for _ in range(MAX_ITERATIONS):
+    resp = client.messages.create(...)
+    if resp.stop_reason != "tool_use":
+        break
+```
+
+Dùng để: luôn có giới hạn số vòng và tiêu chí dừng rõ ràng.
