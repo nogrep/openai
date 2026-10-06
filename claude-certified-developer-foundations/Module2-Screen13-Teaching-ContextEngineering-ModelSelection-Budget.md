@@ -120,9 +120,50 @@ Hộp tổng kết của bài:
 
 Các chiến lược ở trên giả định bạn biết ngân sách context đang chịu áp lực và đang chọn công cụ để xử lý. Điểm then chốt là **không biết áp lực tồn tại cho đến khi phiên hỏng**. Một workload có thể qua mọi test lúc phát triển rồi hỏng ở production chỉ vì output tool lớn hơn, phiên dài hơn, và window từng chứa 20 lượt giờ đầy ở lượt 8. Màn kế tiếp dẫn một postmortem về agent chạy tốt trên dữ liệu test rồi chạm trần khi tài liệu thật bắt đầu chảy vào.
 
-## Phân tích thêm (của Claude, không có trong bài)
+## Tóm tắt, ELI5 và ví dụ (phần Claude thêm)
 
-- **Cách nhớ bốn chiến lược:** xếp theo mức "mất bao nhiêu" từ nhẹ đến nặng thì là *subagent handoff* (mất quá trình, giữ kết quả) → *compaction* (mất chi tiết) → *pruning* (mất công việc sau điểm quay lại) → *clearing* (mất tất cả). Cách sắp này là của tôi để dễ ôn, không phải thứ tự trong bài.
-- **Hai chiến lược dễ bị hỏi lẫn trong đề thi:** pruning khác clearing ở chỗ pruning giữ phần đầu hội thoại còn clearing bỏ hết. Clearing buộc bạn phải có nơi lưu bền vững như `CLAUDE.md` nếu cần nhớ xuyên phiên.
-- **Mức độ chắc chắn:** các nhận định trong mục 1-8 bám theo nội dung bài. Riêng chi tiết về tên các tầng model, con số "ba đến năm lần" và "lượt 8 so với lượt 50" là số liệu minh họa trong bài, không phải số đo tôi tự xác nhận. Những chi tiết phụ thuộc phiên bản (danh sách model, trạng thái beta của server-side compaction, con số hiệu năng agentic search) nên được đối chiếu lại với tài liệu chính thức trước khi dùng cho đề thi hoặc cho hệ thống thật.
-- **Một lỗ hổng nhỏ trong ghi chú này:** hai thao tác cuộn trang bị quá thời gian nên tôi không đọc lại được vài câu ở phần mở đầu của màn, giữa đoạn "mọi kết quả tool được thêm vào window" và đoạn "agent hoặc nén hoặc đứng khựng". Hai đoạn đó nối liền ý với nhau nên ghi chú không bị mất ý chính, nhưng nếu bạn thấy câu nào bị thiếu thì mở lại phần đầu màn để đối chiếu.
+**Tóm tắt**
+
+- Mọi kết quả tool nằm lại trong context window đến hết phiên, nên agent nhiều lượt sẽ phình dần. Chạm trần thì lỗi validation hoặc `model_context_window_exceeded`, không âm thầm cắt.
+- Chọn model: bắt đầu từ Sonnet, lên Opus / xuống Haiku chỉ khi eval chứng minh.
+- Bốn chiến lược giữ ngân sách: pruning, compaction, clearing, subagent handoff. Hai đòn bẩy chi phí: prompt caching (tiền tố ổn định) và `count_tokens` (đo trước khi gửi).
+- Compaction tốt hay dở tùy prompt của bộ tóm tắt: phải liệt kê cụ thể cái cần giữ.
+- RAG hỏng ở ba chỗ: chunking, embedding match, assembly.
+
+**ELI5**
+
+Window là mặt bàn làm việc. Mỗi tài liệu đặt lên là chiếm chỗ đến hết buổi. Khi bàn đầy, bạn có bốn cách: bỏ xấp giấy nháp đi (pruning), viết tờ ghi chú tóm lại rồi dọn bàn (compaction), dọn sạch bàn làm việc khác (clearing), hoặc nhờ đồng nghiệp ngồi bàn riêng làm phần việc đó rồi chỉ trả tờ kết quả (subagent).
+
+**Ví dụ khi implement**
+
+*Snippet 1: đo token trước khi gửi, nén khi gần ngưỡng*
+
+```python
+n = client.messages.count_tokens(
+    model=MODEL, system=SYSTEM, tools=TOOLS, messages=messages
+).input_tokens
+if n > BUDGET * 0.8:
+    messages = compact(messages)   # tóm tắt hoặc cắt tỉa trước khi gửi
+```
+
+Dùng để: phát hiện áp lực context trước khi lỗi xảy ra, thay vì sau.
+
+*Snippet 2: prompt cho bộ tóm tắt phải nêu cụ thể cái cần giữ*
+
+```python
+SUMMARIZER_PROMPT = (
+    "Tóm tắt phiên làm việc. Bắt buộc giữ: mọi đường dẫn file đã sửa, "
+    "mọi quyết định đã chốt, mọi lỗi gặp phải và cách đã giải quyết."
+)
+```
+
+Dùng để: agent ở các lượt sau không mất trạng thái quan trọng.
+
+*Snippet 3: cache tiền tố ổn định (system prompt dài)*
+
+```python
+system=[{"type": "text", "text": LONG_SYSTEM_PROMPT,
+         "cache_control": {"type": "ephemeral"}}]
+```
+
+Dùng để: các lượt sau trả phí thấp hơn cho phần tiền tố giống hệt.
