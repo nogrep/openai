@@ -79,11 +79,25 @@ Lý do bài đưa ra cho đáp án đúng: lỗi bắt đầu ở lượt 5 ch�
 
 **Vì sao B đúng:** B tác động thẳng vào cơ chế. Cắt tỉa kết quả tool đã dùng xong để chúng không tiếp tục chiếm chỗ, và nén trước khi chạm mức nguy hiểm. Đây chính là hai chiến lược pruning và compaction ở Screen 13, cũng là cách sửa được dùng trong postmortem ở Screen 14.
 
-## Phân tích thêm (của Claude, không có trong bài)
+## Tóm tắt, ELI5 và ví dụ (phần Claude thêm)
 
-- **Hai điểm tôi chưa thấy bài làm rõ (mức chắc chắn trung bình):**
-  1. Các lượt 1-4 gọi `fetch_policy_document`, tức chưa lượt nào gọi `apply_coverage_rule`. Vì vậy "lượt 1-4 chứng minh schema ổn" thực ra chỉ chứng minh việc chọn tool đang ổn khi context còn nhẹ. Lập luận chặt hơn nằm ở việc lỗi bắt đầu ở một thời điểm cố định và lặp lại ở lượt 6 trong khi mọi thứ khác không đổi.
-  2. 9.600 token là rất nhỏ so với các window hiện nay (Screen 14 nhắc tối thiểu 200k). Bài không nêu ngân sách hay giới hạn của phiên này, nên cách hiểu hợp lý là phiên chạy với một ngân sách nhỏ do team đặt, hoặc đây là bài minh họa mô hình hóa. Đề thi thường chỉ cần bạn nhận ra mẫu hỏng, không cần số cụ thể.
-- **"Nén trước lượt 5" nên hiểu là ví dụ:** trong thực tế bạn không đặt cứng một số lượt. Bạn dùng `count_tokens` (Screen 13) để đo áp lực context rồi nén khi gần ngưỡng, ngưỡng đó nên đặt dựa trên output tool lớn nhất trong dữ liệu thật như Screen 14 dặn.
-- **Mẹo làm bài dạng này:** bốn bước đọc trace: (1) tìm **lượt đúng cuối cùng** và **lượt sai đầu tiên**, (2) xem điều gì **thay đổi** giữa hai lượt đó (ở đây là lượng context tích lũy, không phải bộ tool hay prompt), (3) kiểm tra triệu chứng có **lặp lại** không (lượt 6), (4) chọn cách sửa tác động vào đúng thứ đã thay đổi.
-- **Trạng thái trang khi tôi đọc:** đáp án B đã được hiển thị sẵn cùng lời giải thích, nên tôi không bấm Submit hay bất kỳ nút tự chấm nào.
+**Tóm tắt**
+
+- Trace: lượt 1-4 gọi đúng, lượt 5 chọn sai tool, lượt 6 lặp lại, lượt 7 thất bại. Thứ thay đổi giữa lượt 4 và 5 là lượng context tích lũy (4 × 2.400 = 9.600 token), không phải schema hay prompt.
+- Đáp án đúng B: cắt tỉa output `fetch_policy_document` sau mỗi lượt và nén trước lượt 5.
+- Cách đọc trace: tìm lượt đúng cuối, lượt sai đầu, xem cái gì đổi giữa hai lượt, kiểm tra lỗi có lặp lại không, rồi sửa đúng thứ đã đổi.
+
+**ELI5**
+
+Bàn làm việc ngày càng chất đầy giấy cũ, đến lúc tờ hướng dẫn quan trọng bị chìm xuống đáy. Bạn không sửa tờ hướng dẫn cho dễ đọc hơn (A), cũng không mua thêm khay đựng giấy ra (C); bạn dọn giấy cũ đi (B).
+
+**Ví dụ khi implement**
+
+*Snippet: ghi log kích thước context mỗi lượt để dễ thấy lượt "chuyển biến"*
+
+```python
+usage = resp.usage
+log.info("turn=%d tool=%s input_tokens=%d", turn, tool_name, usage.input_tokens)
+```
+
+Dùng để: nhìn đường cong input_tokens tăng theo lượt, đối chiếu với lượt bắt đầu chọn sai tool.
