@@ -8,7 +8,7 @@ screen_type: CHECKPOINT (bài tập tự kiểm tra, khoảng 3 phút)
 checkpoint_number: 5
 topic: Context engineering
 screen_title: Checkpoint 5 - Diagnose the context failure
-related_screens: Screen 13 (Teaching - pruning, compaction, count_tokens), Screen 14 (Watch Out - cùng mẫu hỏng: tool output tích tụ chen mất chỉ dẫn)
+related_screens: "Screen 13 (Teaching - pruning, compaction, count_tokens), Screen 14 (Watch Out - cùng mẫu hỏng: tool output tích tụ chen mất chỉ dẫn)"
 note: Ghi chú diễn giải bằng lời của Claude, không phải văn bản gốc của khóa học. Phần giải thích vì sao A và C sai là suy luận của Claude dựa trên nội dung bài, vì màn này chỉ hiển thị lý do cho đáp án đúng
 ---
 

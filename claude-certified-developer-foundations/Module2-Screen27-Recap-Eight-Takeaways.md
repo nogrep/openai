@@ -6,7 +6,7 @@ section: Module wrap up
 screen: 27 of 29
 screen_type: RECAP (tổng kết module)
 topic: Recap - eight takeaways, one per enabling objective
-screen_title: Recap: Eight takeaways, one per enabling objective
+screen_title: "Recap: Eight takeaways, one per enabling objective"
 related_screens: Toàn bộ Module 2 (Screen 1 đến 25)
 note: Ghi chú diễn giải bằng lời của Claude, không phải văn bản gốc của khóa học. Phần đầu bám đủ nội dung màn gốc, phần "Tóm tắt, ELI5 và ví dụ" ở cuối là phần Claude thêm
 ---
